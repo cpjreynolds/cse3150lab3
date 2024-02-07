@@ -28,6 +28,7 @@ $(RUNTARGET): $(SOURCES)
 # macos specific leak checker (macos valgrind is sketchy)
 leaks: $(TESTTARGET)
 	leaks -atExit -quiet -- ./$(TESTTARGET)
+	leaks -atExit -quiet -- ./$(RUNTARGET)
 
 clean:
 	rm -rf \

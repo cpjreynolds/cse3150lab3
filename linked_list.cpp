@@ -1,4 +1,5 @@
 #include <stdexcept>
+#include <vector>
 
 #include "linked_list.hpp"
 
@@ -75,12 +76,123 @@ std::ostream& operator<<(std::ostream& os, const node* n)
     return os << '}';
 }
 
+// does the pointer jumping algorithm in one pass.
+//
+// creates a vector of locations to overwrite, then overwrites them.
+//
+// runs in O(n) as opposed to O(log n) with doubling method.
+//
+// returns a list of nodes so you don't lose references and leak memory.
+std::vector<node*> do_ptr_jumping(node* start)
+{
+    // list of nodes for deletion after
+    std::vector<node*> refs;
+    if (!start) {
+        return refs;
+    }
+    node* curr = start;
+    // locations to overwrite
+    std::vector<node**> locs;
+    while (curr != curr->next) {
+        locs.push_back(&curr->next);
+        refs.push_back(curr);
+        curr = curr->next;
+    }
+    for (auto loc : locs) {
+        *loc = curr;
+    }
+    refs.push_back(curr); // add terminal node to reflist.
+    return refs;
+}
+
+// given the list of nodes all pointing to the terminal node, correctly delete
+// all the nodes.
+//
+// tested with valgrind
+void do_jumped_delete(std::vector<node*>& lst)
+{
+    if (lst.size() == 0) {
+        return;
+    }
+    node* terminal = lst[0]->next;
+    for (node* n : lst) {
+        if (n->next != terminal) {
+            throw std::runtime_error("deleting non-jumped list");
+        }
+        // ensure terminal is only deleted once.
+        n->next = n;
+        delete n;
+    }
+}
+
 #ifdef TESTING
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include <sstream>
 
-using std::ostringstream;
+// simply checks that all the nodes in a list point to a terminal node.
+static bool verify_ptr_jump(std::vector<node*>& lst)
+{
+    if (lst.size() == 0) {
+        return true;
+    }
+    node* terminal = lst[0]->next;
+    for (node* n : lst) {
+        if (n->next != terminal) {
+            return false;
+        }
+    }
+    return true;
+}
+
+TEST_CASE("verify_ptr_jump")
+{
+    // simple sanity check since I use this to verify other tests.
+    node* terminal = new node(99);
+    node* one = new node(1);
+    node* two = new node(2);
+    one->next = terminal;
+    two->next = terminal;
+    std::vector<node*> single{terminal};
+    std::vector<node*> ptrs1{one, terminal};
+    std::vector<node*> ptrs2{one, two, terminal};
+    CHECK(verify_ptr_jump(single));
+    CHECK(verify_ptr_jump(ptrs1));
+    CHECK(verify_ptr_jump(ptrs2));
+    do_jumped_delete(ptrs2);
+}
+
+TEST_CASE("do_ptr_jumping")
+{
+    SUBCASE("zero-element")
+    {
+        node* foo = make_list(0);
+        auto refs = do_ptr_jumping(foo);
+        CHECK(verify_ptr_jump(refs));
+        do_jumped_delete(refs);
+    }
+    SUBCASE("one-element")
+    {
+        node* foo = make_list(1);
+        auto refs = do_ptr_jumping(foo);
+        CHECK(verify_ptr_jump(refs));
+        do_jumped_delete(refs);
+    }
+    SUBCASE("two-element")
+    {
+        node* foo = make_list(2);
+        auto refs = do_ptr_jumping(foo);
+        CHECK(verify_ptr_jump(refs));
+        do_jumped_delete(refs);
+    }
+    SUBCASE("five-element")
+    {
+        node* foo = make_list(5);
+        auto refs = do_ptr_jumping(foo);
+        CHECK(verify_ptr_jump(refs));
+        do_jumped_delete(refs);
+    }
+}
 
 TEST_CASE("node")
 {
@@ -166,33 +278,73 @@ TEST_CASE("node")
     }
     SUBCASE("node::at")
     {
-        node* foo = make_list({-100, 14, 2, 0, 0xbeef});
-        CHECK(node::at(foo, 0)->data == -100);
-        CHECK(node::at(foo, 1)->data == 14);
-        CHECK(node::at(foo, 2)->data == 2);
-        CHECK(node::at(foo, 3)->data == 0);
-        CHECK(node::at(foo, 4)->data == 0xbeef);
-        CHECK_THROWS(node::at(foo, 5));
-        CHECK_THROWS(node::at(foo, 6));
-        delete foo;
+        SUBCASE("zero-element")
+        {
+            node* foo = make_list(0);
+            CHECK_THROWS(node::at(foo, 0));
+            delete foo;
+        }
+        SUBCASE("one-element")
+        {
+            node* foo = make_list({21});
+            CHECK(node::at(foo, 0)->data == 21);
+            CHECK_THROWS(node::at(foo, 1));
+            delete foo;
+        }
+        SUBCASE("two-element")
+        {
+            node* foo = make_list(2);
+            CHECK(node::at(foo, 0)->data == 0);
+            CHECK(node::at(foo, 1)->data == 1);
+            CHECK_THROWS(node::at(foo, 2));
+            delete foo;
+        }
+        SUBCASE("five-element")
+        {
+            node* foo = make_list({-100, 14, 2, 0, 0xbeef});
+            CHECK(node::at(foo, 0)->data == -100);
+            CHECK(node::at(foo, 1)->data == 14);
+            CHECK(node::at(foo, 2)->data == 2);
+            CHECK(node::at(foo, 3)->data == 0);
+            CHECK(node::at(foo, 4)->data == 0xbeef);
+            CHECK_THROWS(node::at(foo, 5));
+            CHECK_THROWS(node::at(foo, 6));
+            delete foo;
+        }
     }
     SUBCASE("node::size")
     {
-        node* foo = make_list(10);
-        node* bar = make_list({10, 9, 8, 7, 6, 5, 4, 3, 2, 1});
-        node* baz = make_list(0);
-        node* buz = make_list({});
-        CHECK(node::size(foo) == 10);
-        CHECK(node::size(bar) == 10);
-        CHECK(node::size(baz) == 0);
-        CHECK(node::size(buz) == 0);
-        delete foo;
-        delete bar;
-        delete baz;
-        delete buz;
+        SUBCASE("zero-element")
+        {
+            node* foo = make_list(0);
+            node* bar = make_list({});
+            CHECK(node::size(foo) == 0);
+            CHECK(node::size(bar) == 0);
+            delete foo;
+            delete bar;
+        }
+        SUBCASE("one-element")
+        {
+            node* foo = make_list(1);
+            CHECK(node::size(foo) == 1);
+            delete foo;
+        }
+        SUBCASE("two-element")
+        {
+            node* foo = make_list(2);
+            CHECK(node::size(foo) == 2);
+            delete foo;
+        }
+        SUBCASE("five-element")
+        {
+            node* foo = make_list(5);
+            CHECK(node::size(foo) == 5);
+            delete foo;
+        }
     }
     SUBCASE("node::operator<<")
     {
+        using std::ostringstream;
         SUBCASE("zero-element")
         {
             node* foo = make_list(0);

@@ -2,11 +2,14 @@
 #define LINKED_LIST_HPP
 
 #include <ostream>
+#include <vector>
 #include <initializer_list>
 
 struct node {
     int data;
     node* next;
+
+    explicit node(int data) : data(data), next(this) {}
 
     // deleting a node deletes all children
     ~node()
@@ -30,12 +33,17 @@ struct node {
     friend node* make_list(size_t nelts);
     // create a list with the given data elements
     friend node* make_list(std::initializer_list<int> lst);
-
-private:
-    // private as nodes should only be created through the factory function
-    // this ensures nodes aren't created on the stack
-    explicit node(int data) : data(data), next(this) {}
 };
+
+// redirects each node to point to the last node.
+//
+// returns a vector of pointers to every node so I don't lose references to them
+// and leak the memory.
+std::vector<node*> do_ptr_jumping(node* start);
+
+// logic to delete the list after doing pointer jumping.
+// ensures each node is deleted and the terminal node is only deleted once.
+void do_jumped_delete(std::vector<node*>& lst);
 
 node* make_list(size_t nelts);
 node* make_list(std::initializer_list<int> lst);
