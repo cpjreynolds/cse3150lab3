@@ -120,7 +120,7 @@ void do_jumped_delete(std::vector<node*>& lst)
     node* terminal = lst[0]->next;
     for (node* n : lst) {
         if (n->next != terminal) {
-            throw std::runtime_error("deleting non-jumped list");
+            throw std::domain_error("deleting non-jumped list");
         }
         // ensure terminal is only deleted once.
         n->next = n;
