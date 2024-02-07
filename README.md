@@ -1,2 +1,8 @@
-# cse3150ex2
-CSE3150 - Exercise 2
+# CSE3150 - Lab 3
+
+`make all` to compile
+
+`make check` to compile and run tests.
+
+`make run` to compile and run `main()`
+
