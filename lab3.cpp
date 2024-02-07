@@ -34,7 +34,7 @@ int main(int argc, char** argv)
     node* lst = make_list(
         {1 << 0, 1 << 1, 1 << 2, 1 << 3, 1 << 4, 1 << 5, 1 << 6, 1 << 7});
     print_trace(lst);
-    auto refs = do_ptr_jumping(lst);
+    auto refs = do_ptr_jump(lst);
     std::cout << std::endl << "[do pointer jumping]" << std::endl << std::endl;
     print_post_trace(refs);
     do_jumped_delete(refs);

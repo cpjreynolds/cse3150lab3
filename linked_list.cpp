@@ -41,7 +41,7 @@ node* node::at(node* start, size_t idx)
     for (size_t i = 0; i < idx; ++i) {
         // bounds check
         if (tgt == tgt->next) {
-            throw std::out_of_range("bad index");
+            throw std::out_of_range("index >= size");
         }
         tgt = tgt->next;
     }
@@ -76,32 +76,35 @@ std::ostream& operator<<(std::ostream& os, const node* n)
     return os << '}';
 }
 
-// does the pointer jumping algorithm in one pass.
+// performs the recursive step in `do_ptr_jump`
 //
-// creates a vector of locations to overwrite, then overwrites them.
-//
-// runs in O(n) as opposed to O(log n) with doubling method.
-//
-// returns a list of nodes so you don't lose references and leak memory.
-std::vector<node*> do_ptr_jumping(node* start)
+// stores a pointer to each visited node in `refs` so the nodes left dangling
+// after jumping can be deleted.
+static node* rec_jump(node* n, std::vector<node*>& refs)
 {
-    // list of nodes for deletion after
+    refs.push_back(n);
+    if (n == n->next) {
+        // we've hit the end
+        return n;
+    }
+    else {
+        // recurse
+        n->next = rec_jump(n->next, refs);
+        return n->next;
+    }
+}
+
+// performs the pointer jumping algorithm recursively.
+std::vector<node*> do_ptr_jump(node* start)
+{
+    // save references to the nodes that will dangle after jumping
     std::vector<node*> refs;
     if (!start) {
         return refs;
     }
-    node* curr = start;
-    // locations to overwrite
-    std::vector<node**> locs;
-    while (curr != curr->next) {
-        locs.push_back(&curr->next);
-        refs.push_back(curr);
-        curr = curr->next;
-    }
-    for (auto loc : locs) {
-        *loc = curr;
-    }
-    refs.push_back(curr); // add terminal node to reflist.
+
+    rec_jump(start, refs);
+
     return refs;
 }
 
@@ -167,28 +170,28 @@ TEST_CASE("do_ptr_jumping")
     SUBCASE("zero-element")
     {
         node* foo = make_list(0);
-        auto refs = do_ptr_jumping(foo);
+        auto refs = do_ptr_jump(foo);
         CHECK(verify_ptr_jump(refs));
         do_jumped_delete(refs);
     }
     SUBCASE("one-element")
     {
         node* foo = make_list(1);
-        auto refs = do_ptr_jumping(foo);
+        auto refs = do_ptr_jump(foo);
         CHECK(verify_ptr_jump(refs));
         do_jumped_delete(refs);
     }
     SUBCASE("two-element")
     {
         node* foo = make_list(2);
-        auto refs = do_ptr_jumping(foo);
+        auto refs = do_ptr_jump(foo);
         CHECK(verify_ptr_jump(refs));
         do_jumped_delete(refs);
     }
     SUBCASE("five-element")
     {
         node* foo = make_list(5);
-        auto refs = do_ptr_jumping(foo);
+        auto refs = do_ptr_jump(foo);
         CHECK(verify_ptr_jump(refs));
         do_jumped_delete(refs);
     }

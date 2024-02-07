@@ -14,6 +14,7 @@ struct node {
     // deleting a node deletes all children
     ~node()
     {
+        // stop if we're the terminal node.
         if (this != next) {
             delete next;
         }
@@ -28,24 +29,21 @@ struct node {
     static size_t size(node* start);
 
     friend std::ostream& operator<<(std::ostream&, const node*);
-
-    // create a list with data elements 0..nelts
-    friend node* make_list(size_t nelts);
-    // create a list with the given data elements
-    friend node* make_list(std::initializer_list<int> lst);
 };
 
-// redirects each node to point to the last node.
+// recursively redirects each node to point to the terminal node.
 //
-// returns a vector of pointers to every node so I don't lose references to them
-// and leak the memory.
-std::vector<node*> do_ptr_jumping(node* start);
+// returns a vector of pointers to every node so nodes that dangle after jumping
+// can be deleted and wont leak.
+std::vector<node*> do_ptr_jump(node* start);
 
-// logic to delete the list after doing pointer jumping.
+// logic to delete the nodes after doing pointer jumping.
 // ensures each node is deleted and the terminal node is only deleted once.
 void do_jumped_delete(std::vector<node*>& lst);
 
+// create a list with data elements 0..nelts
 node* make_list(size_t nelts);
+// create a list with the given data elements
 node* make_list(std::initializer_list<int> lst);
 
 #endif
